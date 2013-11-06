@@ -4,7 +4,7 @@ from twisted.python import log
 import time, sys
 
 ## TODO: load from yaml
-class BoatConfig:
+class BoatConfig(object):
   nickname = "nullbutt"
   realname = "nullren's butt"
   username = "nullbutt"
@@ -54,9 +54,17 @@ class Boat(irc.IRCClient):
       self.join(channel)
 
   def joined(self, channel):
+    try:
+      self.factory.conf.onjoin(self, channel)
+    except AttributeError as e:
+      print(e)
     self.logger.log("[I have joined {}]".format(channel))
 
   def privmsg(self, user, channel, msg):
+    try:
+      self.factory.conf.onmsg(self, user, channel, msg)
+    except AttributeError as e:
+      print(e)
     user = user.split('!', 1)[0]
     self.logger.log("<{} to {}> {}".format(user, channel, msg))
 
