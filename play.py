@@ -6,12 +6,9 @@ from twisted.python import log
 import time, sys
 
 class Logger:
-  def __open_file(self):
-    self.fh = open(self.file, "a")
-
-  def __init__(self, file):
-    self.file = file
-    self.__open_file()
+  def __init__(self, filename):
+    self.filename = filename
+    self.fh = open(filename, "a")
 
   def log(self, msg):
     timestamp = time.strftime("[%H:%M:%S]",
@@ -22,15 +19,19 @@ class Logger:
   def close(self):
     self.fh.close()
 
-class LogBot(irc.IRCClient):
-  nickname = "nullboat"
-  realname = "nullrens boat"
-  username = "nullboat"
+class Boat(irc.IRCClient):
+
+  def __init__(self, factory):
+    self.factory = factory
+
+    self.nickname = self.factory.conf.nickname
+    self.realname = self.factory.conf.realname
+    self.username = self.factory.conf.username
 
   ## connection
   def connectionMade(self):
     irc.IRCClient.connectionMade(self)
-    self.logger = Logger(self.factory.filename)
+    self.logger = Logger(self.factory.conf.logfile)
     self.logger.log("[connected at {}]"
         .format(time.asctime(time.localtime(time.time()))))
 
@@ -41,7 +42,7 @@ class LogBot(irc.IRCClient):
     self.logger.close()
 
   def signedOn(self):
-    for channel in self.factory.channels:
+    for channel in self.factory.conf.channels:
       self.join(channel)
 
   def joined(self, channel):
@@ -64,14 +65,25 @@ class LogBot(irc.IRCClient):
     new_nick = params[0]
     self.logger.log("{} is now known as {}".format(old_nick, new_nick))
 
-class BotFactory(protocol.ClientFactory):
-  def __init__(self, channels, filename):
-    self.channels = channels
-    self.filename = filename
+class BoatConfig:
+  nickname = "BoatBot"
+  realname = "BoatBot"
+  username = "BoatBot"
+
+  server = "irc.starfyre.org"
+  port = 6697
+  ssl = True
+
+  channels = []
+
+  logfile = None
+
+class BoatFactory(protocol.ClientFactory):
+  def __init__(self, config):
+    self.conf = config
 
   def buildProtocol(self, addr):
-    p = LogBot()
-    p.factory = self
+    p = Boat(self)
     return p
 
   def clientConnectionLost(self, connector, reason):
@@ -82,9 +94,16 @@ class BotFactory(protocol.ClientFactory):
     reactor.stop()
 
 if __name__ == '__main__':
+
+  # debug messages to the stdout
   log.startLogging(sys.stdout)
 
-  factory = BotFactory(['#nullren'], "nullboat.out")
+  config = BoatConfig()
+  config.nickname = "nullboat"
+  config.channels = ["#nullren", "#nullboat"]
+  config.logfile = "nullboat.log"
 
-  reactor.connectTCP("irc.starfyre.org", 6667, factory)
+  factory = BoatFactory(config)
+  reactor.connectSSL("irc.starfyre.org", 6697, factory,
+      ssl.CertificateOptions())
   reactor.run()
