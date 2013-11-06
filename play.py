@@ -1,9 +1,18 @@
 from twisted.words.protocols import irc
-
 from twisted.internet import reactor, protocol, ssl
 from twisted.python import log
-
 import time, sys
+
+## TODO: load from yaml
+class BoatConfig:
+  nickname = "nullbutt"
+  realname = "nullren's butt"
+  username = "nullbutt"
+  server = "irc.starfyre.org"
+  port = 6697
+  ssl = True
+  channels = ['#nullren', '#nullbutt']
+  logfile = "/dev/stdout"
 
 class Logger:
   def __init__(self, filename):
@@ -23,7 +32,6 @@ class Boat(irc.IRCClient):
 
   def __init__(self, factory):
     self.factory = factory
-
     self.nickname = self.factory.conf.nickname
     self.realname = self.factory.conf.realname
     self.username = self.factory.conf.username
@@ -51,10 +59,9 @@ class Boat(irc.IRCClient):
   def privmsg(self, user, channel, msg):
     user = user.split('!', 1)[0]
     self.logger.log("<{} to {}> {}".format(user, channel, msg))
-
     # pm
     if channel == self.nickname:
-      return
+      pass
 
   def action(self, user, channel, msg):
     user = user.split('!', 1)[0]
@@ -64,19 +71,6 @@ class Boat(irc.IRCClient):
     old_nick = prefix.split('!')[0]
     new_nick = params[0]
     self.logger.log("{} is now known as {}".format(old_nick, new_nick))
-
-class BoatConfig:
-  nickname = "BoatBot"
-  realname = "BoatBot"
-  username = "BoatBot"
-
-  server = "irc.starfyre.org"
-  port = 6697
-  ssl = True
-
-  channels = []
-
-  logfile = None
 
 class BoatFactory(protocol.ClientFactory):
   def __init__(self, config):
@@ -94,16 +88,14 @@ class BoatFactory(protocol.ClientFactory):
     reactor.stop()
 
 if __name__ == '__main__':
-
   # debug messages to the stdout
   log.startLogging(sys.stdout)
 
   config = BoatConfig()
-  config.nickname = "nullboat"
-  config.channels = ["#nullren", "#nullboat"]
-  config.logfile = "nullboat.log"
-
   factory = BoatFactory(config)
-  reactor.connectSSL("irc.starfyre.org", 6697, factory,
-      ssl.CertificateOptions())
+  if config.ssl:
+    reactor.connectSSL(config.server, config.port, factory,
+        ssl.CertificateOptions())
+  else:
+    reactor.connectTCP(config.server, config.port, factory)
   reactor.run()
