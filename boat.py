@@ -11,7 +11,7 @@ class BoatConfig:
   server = "irc.starfyre.org"
   port = 6697
   ssl = True
-  channels = ['#nullren', '#nullbutt']
+  channels = ['#nullren']
   logfile = "/dev/stdout"
 
 class Logger:
@@ -59,9 +59,6 @@ class Boat(irc.IRCClient):
   def privmsg(self, user, channel, msg):
     user = user.split('!', 1)[0]
     self.logger.log("<{} to {}> {}".format(user, channel, msg))
-    # pm
-    if channel == self.nickname:
-      pass
 
   def action(self, user, channel, msg):
     user = user.split('!', 1)[0]
@@ -71,6 +68,18 @@ class Boat(irc.IRCClient):
     old_nick = prefix.split('!')[0]
     new_nick = params[0]
     self.logger.log("{} is now known as {}".format(old_nick, new_nick))
+
+  def irc_JOIN(self, prefix, params):
+    user = prefix.split('!')[0]
+    self.logger.log("{} joined {}".format(user, params))
+
+  def irc_PART(self, prefix, params):
+    user = prefix.split('!')[0]
+    self.logger.log("{} parted {}".format(user, params))
+
+  def irc_QUIT(self, prefix, params):
+    user = prefix.split('!')[0]
+    self.logger.log("{} quit {}".format(user, params))
 
 class BoatFactory(protocol.ClientFactory):
   def __init__(self, config):
@@ -87,11 +96,9 @@ class BoatFactory(protocol.ClientFactory):
     print("connection failed: ", reason)
     reactor.stop()
 
-if __name__ == '__main__':
+def run(config):
   # debug messages to the stdout
   log.startLogging(sys.stdout)
-
-  config = BoatConfig()
   factory = BoatFactory(config)
   if config.ssl:
     reactor.connectSSL(config.server, config.port, factory,
@@ -99,3 +106,10 @@ if __name__ == '__main__':
   else:
     reactor.connectTCP(config.server, config.port, factory)
   reactor.run()
+
+def main():
+  run(BoatConfig())
+  return 0
+
+if __name__ == '__main__':
+  sys.exit(main())
